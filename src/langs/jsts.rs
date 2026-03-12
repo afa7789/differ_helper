@@ -1,0 +1,217 @@
+//! JavaScript / TypeScript language extractor.
+//!
+//! Extracts variable declarations, function/type definitions, arrow functions,
+//! and test/describe/it blocks.
+
+use crate::extract::{Extracted, Extractor, ExtractorState};
+use crate::ident;
+
+pub struct JsTsExtractor;
+
+impl Extractor for JsTsExtractor {
+    fn extract_line(&self, line: &str, _state: &mut ExtractorState) -> Extracted {
+        let mut out = Extracted::default();
+
+        for name in var_names(line) {
+            out.variables.push(name.to_string());
+        }
+        for name in fn_names(line) {
+            out.functions.push(name.to_string());
+        }
+        for name in test_names(line) {
+            out.tests.push(name);
+        }
+
+        out
+    }
+}
+
+/// Extract variable names: const, let, var (with optional export/declare).
+fn var_names(line: &str) -> Vec<&str> {
+    let prefixes = [
+        "export const ",
+        "export let ",
+        "export var ",
+        "declare const ",
+        "declare let ",
+        "const ",
+        "let ",
+        "var ",
+    ];
+
+    let mut matches: Vec<(usize, &str)> = Vec::new();
+    for prefix in prefixes {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(prefix) {
+            let abs = start + pos;
+            let after = line[abs + prefix.len()..].trim_start();
+            // Skip destructuring patterns.
+            if after.starts_with('{') || after.starts_with('[') {
+                start = abs + prefix.len();
+                continue;
+            }
+            if let Some(name) = ident::prefix(after) {
+                if !matches
+                    .iter()
+                    .any(|(p, _)| *p == abs || (abs < *p + 10 && abs > p.saturating_sub(20)))
+                {
+                    matches.push((abs, name));
+                }
+            }
+            start = abs + prefix.len();
+        }
+    }
+    matches.sort_by_key(|(pos, _)| *pos);
+    matches.dedup_by_key(|(pos, _)| *pos);
+    matches.into_iter().map(|(_, name)| name).collect()
+}
+
+/// Extract function names: declarations, arrow functions, and type definitions.
+fn fn_names(line: &str) -> Vec<&str> {
+    let mut out: Vec<(usize, &str)> = Vec::new();
+
+    // Function declarations.
+    let fn_patterns = [
+        "export default async function ",
+        "export default function ",
+        "export async function ",
+        "export function ",
+        "async function ",
+        "function ",
+    ];
+    collect_patterns(line, &fn_patterns, &mut out);
+
+    // Arrow functions: `const NAME = (...) =>` or `const NAME = async (`.
+    let arrow_kw = ["export const ", "export let ", "const ", "let ", "var "];
+    for kw in arrow_kw {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(kw) {
+            let abs = start + pos;
+            let after = &line[abs + kw.len()..];
+            if let Some(name) = ident::prefix(after) {
+                let rest = line[abs + kw.len() + name.len()..].trim_start();
+                if let Some(after_eq) = rest.strip_prefix('=') {
+                    let rhs = after_eq.trim_start();
+                    if (rhs.starts_with('(') || rhs.starts_with("async"))
+                        && !out.iter().any(|(p, _)| *p == abs)
+                    {
+                        out.push((abs, name));
+                    }
+                }
+            }
+            start = abs + kw.len();
+        }
+    }
+
+    // Type declarations: type, interface, enum.
+    let type_patterns = [
+        "export type ",
+        "export interface ",
+        "export enum ",
+        "type ",
+        "interface ",
+        "enum ",
+    ];
+    collect_patterns(line, &type_patterns, &mut out);
+
+    out.sort_by_key(|(pos, _)| *pos);
+    out.into_iter().map(|(_, name)| name).collect()
+}
+
+/// Extract test names from describe/it/test blocks.
+fn test_names(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let patterns = [
+        "describe(",
+        "it(",
+        "test(",
+        "it.each(",
+        "test.each(",
+        "describe.each(",
+        "it.only(",
+        "test.only(",
+        "describe.only(",
+        "it.skip(",
+        "test.skip(",
+        "describe.skip(",
+    ];
+    for pat in patterns {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(pat) {
+            let abs = start + pos;
+            let after = &line[abs + pat.len()..];
+            if let Some(name) = ident::extract_string_arg(after) {
+                out.push(name.to_string());
+            }
+            start = abs + pat.len();
+        }
+    }
+    out
+}
+
+/// Shared helper: find all patterns and collect identifiers that follow them.
+///
+/// Deduplicates by position to avoid overlapping matches (e.g. "export function "
+/// and "function " matching the same declaration).
+fn collect_patterns<'a>(line: &'a str, patterns: &[&str], out: &mut Vec<(usize, &'a str)>) {
+    for pat in patterns {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(pat) {
+            let abs = start + pos;
+            let after = &line[abs + pat.len()..];
+            if let Some(name) = ident::prefix(after) {
+                // Skip if we already captured this name from an overlapping longer pattern.
+                if !out.iter().any(|(_, n)| *n == name) {
+                    out.push((abs, name));
+                }
+            }
+            start = abs + pat.len();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::extract::ExtractorState;
+
+    fn extract(line: &str) -> Extracted {
+        JsTsExtractor.extract_line(line, &mut ExtractorState::default())
+    }
+
+    #[test]
+    fn variables() {
+        let e = extract("export const API_KEY = 'abc';");
+        assert_eq!(e.variables, vec!["API_KEY"]);
+    }
+
+    #[test]
+    fn function_declaration() {
+        let e = extract("export function processData(input) {");
+        assert_eq!(e.functions, vec!["processData"]);
+    }
+
+    #[test]
+    fn arrow_function() {
+        let e = extract("const handler = async (req, res) => {");
+        assert_eq!(e.functions, vec!["handler"]);
+    }
+
+    #[test]
+    fn type_declaration() {
+        let e = extract("export interface UserProfile {");
+        assert_eq!(e.functions, vec!["UserProfile"]);
+    }
+
+    #[test]
+    fn test_block() {
+        let e = extract("  describe('UserService', () => {");
+        assert_eq!(e.tests, vec!["UserService"]);
+    }
+
+    #[test]
+    fn skip_destructuring() {
+        let e = extract("const { x, y } = point;");
+        assert!(e.variables.is_empty());
+    }
+}
