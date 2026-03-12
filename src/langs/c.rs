@@ -163,4 +163,35 @@ mod tests {
         let e = extract("void cleanup(void) {");
         assert_eq!(e.functions, vec!["cleanup"]);
     }
+
+    #[test]
+    fn define_no_name() {
+        // `#define` followed by nothing useful.
+        let e = extract("#define ");
+        assert!(e.variables.is_empty());
+    }
+
+    #[test]
+    fn union_def() {
+        let e = extract("union Data {");
+        assert_eq!(e.functions, vec!["Data"]);
+    }
+
+    #[test]
+    fn skip_control_flow() {
+        let e = extract("if (x > 0) {");
+        assert!(e.functions.is_empty());
+    }
+
+    #[test]
+    fn skip_return() {
+        let e = extract("return foo(bar);");
+        assert!(e.functions.is_empty());
+    }
+
+    #[test]
+    fn static_function() {
+        let e = extract("static int helper(int x) {");
+        assert_eq!(e.functions, vec!["helper"]);
+    }
 }

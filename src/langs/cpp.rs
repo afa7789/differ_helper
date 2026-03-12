@@ -154,4 +154,24 @@ mod tests {
         let e = extract("void render(Scene* scene) {");
         assert_eq!(e.functions, vec!["render"]);
     }
+
+    #[test]
+    fn constexpr_no_space_in_type() {
+        // `constexpr NAME = value` (single-word before `=`).
+        let e = extract("constexpr MAX = 42;");
+        assert_eq!(e.variables, vec!["MAX"]);
+    }
+
+    #[test]
+    fn test_p() {
+        let e = extract("TEST_P(ParamSuite, Works) {");
+        assert_eq!(e.tests, vec!["ParamSuite.Works"]);
+    }
+
+    #[test]
+    fn class_no_duplicate_with_c_fn() {
+        // `class` should not produce duplicate if C also extracts it.
+        let e = extract("class Foo {");
+        assert_eq!(e.functions, vec!["Foo"]);
+    }
 }

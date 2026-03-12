@@ -145,4 +145,28 @@ mod tests {
         let e = extract("DROP TABLE IF EXISTS legacy_data;");
         assert_eq!(e.functions, vec!["legacy_data"]);
     }
+
+    #[test]
+    fn quoted_identifier() {
+        let e = extract("CREATE TABLE \"My Table\" (");
+        assert_eq!(e.functions, vec!["\"My Table\""]);
+    }
+
+    #[test]
+    fn quoted_schema_qualified() {
+        let e = extract("CREATE TABLE \"public\".\"user-data\" (");
+        assert_eq!(e.functions, vec!["\"public\".\"user-data\""]);
+    }
+
+    #[test]
+    fn empty_after_create() {
+        let e = extract("CREATE TABLE ");
+        assert!(e.functions.is_empty());
+    }
+
+    #[test]
+    fn case_insensitive() {
+        let e = extract("create table accounts (");
+        assert_eq!(e.functions, vec!["accounts"]);
+    }
 }
