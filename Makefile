@@ -1,4 +1,4 @@
-.PHONY: build release test lint fmt check clean install
+.PHONY: build release test lint fmt check clean install reinstall uninstall
 
 # Default target
 all: check test build
@@ -37,6 +37,13 @@ check: fmt lint test
 # Install binary to ~/.cargo/bin
 install:
 	cargo install --path .
+
+# Uninstall binary from wherever cargo installed it
+uninstall:
+	cargo uninstall differ_helper 2>/dev/null || true
+
+# Remove old version and install fresh from current source
+reinstall: uninstall install
 
 # Clean build artifacts
 clean:

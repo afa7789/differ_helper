@@ -1,6 +1,6 @@
 # Git diff analysis and duplicate removal — workflow
 
-Use this workflow to analyze a git diff, extract variables/functions/tests, analyze duplicates, remove them, and run lint/tests until stable.
+Use this workflow to analyze a git diff, extract variables/functions/tests/imports, analyze duplicates, check for deprecated dependencies, remove issues, and run lint/tests until stable.
 
 ---
 
@@ -9,28 +9,44 @@ Use this workflow to analyze a git diff, extract variables/functions/tests, anal
 1. Install Rust if not already installed:
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-2. Clone and install differ_helper globally (one-time):
+2. First time — clone and install:
    git clone https://github.com/afa7789/differ_helper /tmp/differ_helper
    cd /tmp/differ_helper && make install && cd -
-   After this, differ_helper is available directly in the terminal via ~/.cargo/bin.
 
-3. Fetch and determine base branch of the current repo:
+   Already installed — update to latest version:
+   cd /tmp/differ_helper && git pull && make reinstall && cd -
+
+   If the /tmp clone was lost (reboot etc.), just re-clone from scratch.
+
+   `make install` compiles and copies the binary to ~/.cargo/bin/differ_helper.
+   `make reinstall` removes the old binary first, then installs fresh.
+   ~/.cargo/bin is already in your $PATH (rustup sets this up).
+
+3. Ensure the remote is fetched:
    git fetch origin
-   git remote show origin | grep HEAD
-   Use the branch name shown (e.g. next, main, or master).
-
-4. Generate the diff and save to a file:
-   git diff origin/<BASE>...HEAD > /tmp/diff.txt
-   Replace <BASE> with the branch from step 3 (e.g. next or main).
 
 ---
 
 ## Step 1 — Extract names from the diff
 
-Run differ_helper on the diff file:
-   differ_helper /tmp/diff.txt
+Run differ_helper in the current repo:
 
-The binary will output:
+   differ_helper
+
+This auto-detects where the current branch diverged from its upstream (e.g. origin/main) and diffs everything since that point. No need to generate a diff file manually.
+
+You can also target a specific base:
+
+   differ_helper main
+   differ_helper origin/develop
+   differ_helper v1.2.0
+
+Or pass a diff file directly:
+
+   differ_helper /path/to/diff.txt
+
+The output will contain:
+
    VARIABLES:
    - <var_name> -> <file_path>
 

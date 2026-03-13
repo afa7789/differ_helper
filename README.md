@@ -1,22 +1,22 @@
 # differ_helper
 
-A fast, zero-config CLI that parses **git unified diffs** and extracts every **variable**, **function**, and **test** introduced in the changeset, grouped by file.
+A fast, zero-config CLI that parses **git unified diffs** and extracts every **variable**, **function**, **test**, and **import** introduced in the changeset, grouped by file. Also flags **security-sensitive patterns** (hardcoded secrets, dangerous calls, injection risks).
 
 Built in Rust with **parallel file processing** via [rayon](https://github.com/rayon-rs/rayon) — each file section is extracted concurrently for maximum throughput on large diffs.
 
 ## Supported Languages
 
-| Language      | Extensions                             | Variables                       | Functions                         | Tests                              |
-|---------------|----------------------------------------|---------------------------------|-----------------------------------|------------------------------------|
-| Rust          | `.rs`                                  | `let`, `const`, `static`        | `fn`, `pub fn`, `async fn`        | `#[test] fn`                       |
-| Python        | `.py`, `.pyi`                          | module-level assignments        | `def`, `async def`, `class`       | `test_*`, `TestCase`               |
-| Go            | `.go`                                  | `var`, `const`, `:=`            | `func`, `type`                    | `Test*`, `Benchmark*`, `Example*`  |
-| C             | `.c`, `.h`                             | `#define`                       | `struct`, `enum`, `typedef`, fns  | —                                  |
-| C++           | `.cpp`, `.cxx`, `.cc`, `.hpp`, `.hxx`  | `#define`, `constexpr`          | `class`, `namespace`, fns         | GTest, Catch2, Boost.Test          |
-| TypeScript/JS | `.ts`, `.tsx`, `.js`, `.jsx`           | `const`, `let`, `var`           | `function`, arrows, types         | `describe`, `it`, `test`           |
-| CSS           | `.css`                                 | `--custom-props`                | `.class`, `#id` selectors         | —                                  |
-| SQL           | `.sql`                                 | —                               | DDL objects (CREATE/ALTER/DROP)    | —                                  |
-| MASM          | `.masm`                                | `const`                         | `proc`, `use`                     | —                                  |
+| Language      | Extensions                             | Variables                       | Functions                         | Tests                              | Imports                          |
+|---------------|----------------------------------------|---------------------------------|-----------------------------------|------------------------------------|---------------------------------|
+| Rust          | `.rs`                                  | `let`, `const`, `static`        | `fn`, `pub fn`, `async fn`        | `#[test] fn`                       | `use`, `extern crate`           |
+| Python        | `.py`, `.pyi`                          | module-level assignments        | `def`, `async def`, `class`       | `test_*`, `TestCase`               | `import`, `from X import`       |
+| Go            | `.go`                                  | `var`, `const`, `:=`            | `func`, `type`                    | `Test*`, `Benchmark*`, `Example*`  | `import "pkg"`                  |
+| C             | `.c`, `.h`                             | `#define`                       | `struct`, `enum`, `typedef`, fns  | —                                  | `#include`                      |
+| C++           | `.cpp`, `.cxx`, `.cc`, `.hpp`, `.hxx`  | `#define`, `constexpr`          | `class`, `namespace`, fns         | GTest, Catch2, Boost.Test          | `#include`                      |
+| TypeScript/JS | `.ts`, `.tsx`, `.js`, `.jsx`           | `const`, `let`, `var`           | `function`, arrows, types         | `describe`, `it`, `test`           | `import from`, `require()`      |
+| CSS           | `.css`                                 | `--custom-props`                | `.class`, `#id` selectors         | —                                  | `@import`                       |
+| SQL           | `.sql`                                 | —                               | DDL objects (CREATE/ALTER/DROP)    | —                                  | —                               |
+| MASM          | `.masm`                                | `const`                         | `proc`, `use`                     | —                                  | —                               |
 
 ## Prerequisites
 
@@ -51,18 +51,57 @@ make release
 # Binary at: target/release/differ_helper
 ```
 
+### Updating
+
+```bash
+git pull && make reinstall
+```
+
+`make reinstall` removes the old binary from `~/.cargo/bin` and installs the new version from source.
+
+### Uninstalling
+
+```bash
+make uninstall
+```
+
 ## Usage
 
 ```bash
-# Generate a diff
-git diff origin/main...HEAD > /tmp/diff.txt
+# Auto-detect: diffs current branch against its origin
+differ_helper
 
-# Run
-differ_helper /tmp/diff.txt
-# or: ./target/release/differ_helper /tmp/diff.txt
+# Diff against a specific branch, tag, or commit
+differ_helper main
+differ_helper origin/develop
+differ_helper v1.2.0
+differ_helper abc123f
+
+# Range syntax
+differ_helper main..HEAD
+differ_helper main...feature
+
+# Read a diff file directly
+differ_helper /path/to/diff.txt
 ```
 
-Without arguments it reads from `/tmp/diff_origin_next.txt`.
+### How auto-detection works (no arguments)
+
+When run without arguments, differ_helper automatically finds the best diff:
+
+1. Finds the **merge-base** between HEAD and its upstream (tracked branch, `origin/main`, `origin/master`, `origin/develop`, or `origin/next`).
+2. Diffs **everything** the current branch has that's different from that base.
+3. Falls back to unstaged changes (`git diff`), then staged changes (`git diff --cached`).
+
+This means you can just `cd` into your repo and run `differ_helper` — it figures out the right diff automatically.
+
+### How argument detection works
+
+When you pass an argument, differ_helper detects what it is:
+
+1. If it contains `..` → treated as a **git range** (`git diff main..HEAD`).
+2. If it resolves to a **git ref** (branch, tag, commit hash) → diffs against the merge-base with HEAD.
+3. If it's a **file on disk** → reads it as a unified diff file.
 
 ## Output
 
@@ -78,23 +117,46 @@ FUNCTIONS:
 TESTS:
 - it_works -> src/lib.rs
 - test_user_creation -> app/models.py
+
+IMPORTS:
+- std::collections::HashMap -> src/lib.rs
+- os -> app/models.py
+
+WARNINGS:
+- hardcoded password -> config/secrets.py
+- dangerous eval() -> utils/parser.js
 ```
 
-Entries are deduplicated by `(name, file)` and sorted by file path, then name.
+Entries are deduplicated by `(name, file)` and sorted by file path, then name. Warnings are deduplicated by `(pattern, file)`.
+
+### Security patterns detected
+
+The WARNINGS section flags 22 built-in patterns including:
+
+- **Secrets**: `password`, `secret`, `api_key`, `access_token`, `private_key`, `credential`
+- **Dangerous calls**: `eval()`, `exec()`, `subprocess`, `os.system`, `Runtime.exec`
+- **XSS risks**: `innerHTML`, `dangerouslySetInnerHTML`, `document.write`
+- **Raw SQL**: `SELECT`, `INSERT INTO`, `DELETE FROM` (case-insensitive)
+- **Code markers**: `TODO`, `FIXME`, `HACK`
+- **Rust-specific**: `unsafe`, `unwrap()`
+
+Comments are automatically skipped.
 
 ## Makefile Targets
 
-| Target         | Description                                  |
-|----------------|----------------------------------------------|
-| `make build`   | Debug build                                  |
-| `make release` | Optimized release build                      |
-| `make test`    | Run all tests                                |
-| `make lint`    | Run clippy with `-D warnings`                |
-| `make fmt`     | Check formatting                             |
-| `make fmt-fix` | Auto-fix formatting                          |
-| `make check`   | Full CI check (fmt + lint + test)            |
-| `make install` | Install binary to `~/.cargo/bin`             |
-| `make clean`   | Remove build artifacts                       |
+| Target           | Description                                  |
+|------------------|----------------------------------------------|
+| `make build`     | Debug build                                  |
+| `make release`   | Optimized release build                      |
+| `make test`      | Run all tests                                |
+| `make lint`      | Run clippy with `-D warnings`                |
+| `make fmt`       | Check formatting                             |
+| `make fmt-fix`   | Auto-fix formatting                          |
+| `make check`     | Full CI check (fmt + lint + test)            |
+| `make install`   | Install binary to `~/.cargo/bin`             |
+| `make uninstall` | Remove binary from `~/.cargo/bin`            |
+| `make reinstall` | Remove old binary and install from source    |
+| `make clean`     | Remove build artifacts                       |
 
 ### Cross-compilation
 
@@ -113,11 +175,12 @@ make cross-all         # All platforms + macOS
 
 ```
 src/
-├── main.rs          # CLI + parallel diff orchestration (rayon)
+├── main.rs          # CLI + smart arg detection + parallel diff orchestration (rayon)
 ├── lang.rs          # Language detection by extension
 ├── extract.rs       # Extractor trait + result types
 ├── ident.rs         # Shared identifier parsing helpers
 ├── output.rs        # Dedup + sorted output
+├── security.rs      # Built-in security pattern detection
 ├── langs/
 │   ├── mod.rs       # Extractor factory
 │   ├── rust.rs      # Rust extractor
@@ -128,12 +191,14 @@ src/
 │   ├── jsts.rs      # JS/TS extractor
 │   ├── css.rs       # CSS extractor
 │   ├── sql.rs       # SQL extractor
-│   └── masm.rs      # MASM extractor
+│   ├── masm.rs      # MASM extractor
+│   └── ADDING_LANGUAGES.md  # Guide for adding new languages
 └── tests/
     ├── main_test.rs
     ├── ident_test.rs
     ├── lang_test.rs
     ├── output_test.rs
+    ├── security_test.rs
     └── langs/
         ├── rust_test.rs
         ├── python_test.rs
@@ -146,13 +211,13 @@ src/
         └── masm_test.rs
 ```
 
-Adding a new language: implement `Extractor` in a new file under `langs/`, add two lines in `langs/mod.rs` and `lang.rs`.
+Adding a new language: see [`src/langs/ADDING_LANGUAGES.md`](src/langs/ADDING_LANGUAGES.md) for a step-by-step guide.
 
 ## Tests
 
 ```bash
-make test               # 104 unit + integration tests
-cargo tarpaulin         # ~96% line coverage
+make test               # 119 unit + integration tests
+cargo tarpaulin         # line coverage report
 ```
 
 ## CI
