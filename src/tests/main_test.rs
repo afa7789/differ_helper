@@ -65,7 +65,7 @@ fn rust_end_to_end() {
             "fn it_works() {",
         ],
     );
-    let (vars, fns, tests) = parse_diff(&diff);
+    let (vars, fns, tests, _, _) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "count"));
     assert!(fns.iter().any(|(n, _)| n == "process"));
     assert!(tests.iter().any(|(n, _)| n == "it_works"));
@@ -82,7 +82,7 @@ fn python_end_to_end() {
             "def test_user_creation():",
         ],
     );
-    let (vars, fns, tests) = parse_diff(&diff);
+    let (vars, fns, tests, _, _) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "MAX_RETRIES"));
     assert!(fns.iter().any(|(n, _)| n == "process_data"));
     assert!(fns.iter().any(|(n, _)| n == "UserService"));
@@ -100,7 +100,7 @@ fn go_end_to_end() {
             "func TestParseConfig(t *testing.T) {",
         ],
     );
-    let (vars, fns, tests) = parse_diff(&diff);
+    let (vars, fns, tests, _, _) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "maxRetries"));
     assert!(fns.iter().any(|(n, _)| n == "ProcessData"));
     assert!(fns.iter().any(|(n, _)| n == "Config"));
@@ -117,7 +117,7 @@ fn c_end_to_end() {
             "int parse_input(const char *buf) {",
         ],
     );
-    let (vars, fns, _) = parse_diff(&diff);
+    let (vars, fns, ..) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "MAX_SIZE"));
     assert!(fns.iter().any(|(n, _)| n == "Node"));
     assert!(fns.iter().any(|(n, _)| n == "parse_input"));
@@ -133,7 +133,7 @@ fn cpp_end_to_end() {
             "TEST(ParserSuite, HandlesEmpty) {",
         ],
     );
-    let (_, fns, tests) = parse_diff(&diff);
+    let (_, fns, tests, ..) = parse_diff(&diff);
     assert!(fns.iter().any(|(n, _)| n == "Widget"));
     assert!(fns.iter().any(|(n, _)| n == "detail"));
     assert!(tests.iter().any(|(n, _)| n == "ParserSuite.HandlesEmpty"));
@@ -145,7 +145,7 @@ fn sql_end_to_end() {
         "migrations/001.sql",
         &["CREATE TABLE IF NOT EXISTS users ("],
     );
-    let (_, fns, _) = parse_diff(&diff);
+    let (_, fns, ..) = parse_diff(&diff);
     assert!(fns.iter().any(|(n, _)| n == "users"));
 }
 
@@ -159,7 +159,7 @@ fn jsts_end_to_end() {
             "  describe('UserService', () => {",
         ],
     );
-    let (vars, fns, tests) = parse_diff(&diff);
+    let (vars, fns, tests, ..) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "API_KEY"));
     assert!(fns.iter().any(|(n, _)| n == "processData"));
     assert!(tests.iter().any(|(n, _)| n == "UserService"));
@@ -168,7 +168,7 @@ fn jsts_end_to_end() {
 #[test]
 fn css_end_to_end() {
     let diff = make_diff("styles.css", &[".container {", "  --primary-color: #333;"]);
-    let (vars, fns, _) = parse_diff(&diff);
+    let (vars, fns, ..) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "--primary-color"));
     assert!(fns.iter().any(|(n, _)| n == ".container"));
 }
@@ -183,7 +183,7 @@ fn masm_end_to_end() {
             "use miden::crypto::hash",
         ],
     );
-    let (vars, fns, _) = parse_diff(&diff);
+    let (vars, fns, ..) = parse_diff(&diff);
     assert!(vars.iter().any(|(n, _)| n == "MAX"));
     assert!(fns.iter().any(|(n, _)| n == "compute"));
     assert!(fns.iter().any(|(n, _)| n == "miden::crypto::hash"));
@@ -192,16 +192,17 @@ fn masm_end_to_end() {
 #[test]
 fn unknown_lang_produces_nothing() {
     let diff = make_diff("README.md", &["# Hello World"]);
-    let (vars, fns, tests) = parse_diff(&diff);
+    let (vars, fns, tests, imports, _) = parse_diff(&diff);
     assert!(vars.is_empty());
     assert!(fns.is_empty());
     assert!(tests.is_empty());
+    assert!(imports.is_empty());
 }
 
 #[test]
 fn dev_null_skipped() {
     let diff = "diff --git a/old.rs b/old.rs\n+++ /dev/null\n+let x = 1;\n";
-    let (vars, _, _) = parse_diff(diff);
+    let (vars, ..) = parse_diff(diff);
     assert!(vars.is_empty());
 }
 
@@ -216,7 +217,7 @@ fn multi_file_parallel_extraction() {
         ("lib/util.c", &["#define D 1", "void delta(void) {"]),
         ("src/w.cpp", &["class Epsilon {", "TEST(S, T) {"]),
     ]);
-    let (vars, fns, tests) = parse_diff(&diff);
+    let (vars, fns, tests, ..) = parse_diff(&diff);
 
     // Check all files contributed.
     assert!(fns.iter().any(|(n, _)| n == "alpha"));
@@ -239,10 +240,11 @@ fn extract_section_unknown_lang() {
         path: "notes.txt".to_string(),
         added_lines: vec!["+some random text\n".to_string()],
     };
-    let (v, f, t) = extract_section(&section);
-    assert!(v.is_empty());
-    assert!(f.is_empty());
-    assert!(t.is_empty());
+    let result = extract_section(&section);
+    assert!(result.variables.is_empty());
+    assert!(result.functions.is_empty());
+    assert!(result.tests.is_empty());
+    assert!(result.imports.is_empty());
 }
 
 // ── jsx/tsx support ────────────────────────────────────────
@@ -259,10 +261,94 @@ fn jsx_tsx_end_to_end() {
             &["export default function Home() {", "let count = 0;"],
         ),
     ]);
-    let (vars, fns, _) = parse_diff(&diff);
+    let (vars, fns, ..) = parse_diff(&diff);
     assert!(fns
         .iter()
-        .any(|(n, f)| n == "Button" && f.ends_with(".tsx")));
-    assert!(fns.iter().any(|(n, f)| n == "Home" && f.ends_with(".jsx")));
+        .any(|(n, f): &(String, String)| n == "Button" && f.ends_with(".tsx")));
+    assert!(fns
+        .iter()
+        .any(|(n, f): &(String, String)| n == "Home" && f.ends_with(".jsx")));
     assert!(vars.iter().any(|(n, _)| n == "count"));
+}
+
+// ── imports end-to-end ────────────────────────────────────
+
+#[test]
+fn rust_imports_end_to_end() {
+    let diff = make_diff(
+        "src/lib.rs",
+        &["use std::collections::HashMap;", "use crate::utils"],
+    );
+    let (.., imports, _) = parse_diff(&diff);
+    assert!(imports
+        .iter()
+        .any(|(n, _)| n == "std::collections::HashMap"));
+    assert!(imports.iter().any(|(n, _)| n == "crate::utils"));
+}
+
+#[test]
+fn python_imports_end_to_end() {
+    let diff = make_diff("app.py", &["import os", "from pathlib import Path"]);
+    let (.., imports, _) = parse_diff(&diff);
+    assert!(imports.iter().any(|(n, _)| n == "os"));
+    assert!(imports.iter().any(|(n, _)| n == "pathlib"));
+}
+
+#[test]
+fn go_imports_end_to_end() {
+    let diff = make_diff("main.go", &["import \"fmt\"", "  \"net/http\""]);
+    let (.., imports, _) = parse_diff(&diff);
+    assert!(imports.iter().any(|(n, _)| n == "fmt"));
+    assert!(imports.iter().any(|(n, _)| n == "net/http"));
+}
+
+#[test]
+fn jsts_imports_end_to_end() {
+    let diff = make_diff(
+        "app.ts",
+        &["import React from 'react';", "const fs = require('fs');"],
+    );
+    let (.., imports, _) = parse_diff(&diff);
+    assert!(imports.iter().any(|(n, _)| n == "react"));
+    assert!(imports.iter().any(|(n, _)| n == "fs"));
+}
+
+#[test]
+fn c_includes_end_to_end() {
+    let diff = make_diff("lib.c", &["#include <stdio.h>", "#include \"myheader.h\""]);
+    let (.., imports, _) = parse_diff(&diff);
+    assert!(imports.iter().any(|(n, _)| n == "stdio.h"));
+    assert!(imports.iter().any(|(n, _)| n == "myheader.h"));
+}
+
+#[test]
+fn css_imports_end_to_end() {
+    let diff = make_diff(
+        "styles.css",
+        &["@import 'reset.css';", "@import url(\"theme.css\");"],
+    );
+    let (.., imports, _) = parse_diff(&diff);
+    assert!(imports.iter().any(|(n, _)| n == "reset.css"));
+    assert!(imports.iter().any(|(n, _)| n == "theme.css"));
+}
+
+// ── security warnings end-to-end ──────────────────────────
+
+#[test]
+fn security_warnings_detected() {
+    let diff = make_diff(
+        "config.py",
+        &["password = 'hunter2'", "api_key = 'sk-123'", "count = 0"],
+    );
+    let (.., warnings) = parse_diff(&diff);
+    assert!(warnings.iter().any(|w| w.pattern == "hardcoded password"));
+    assert!(warnings.iter().any(|w| w.pattern == "hardcoded API key"));
+    assert_eq!(warnings.len(), 2);
+}
+
+#[test]
+fn security_no_false_positives_on_clean_code() {
+    let diff = make_diff("lib.rs", &["let count = 0;", "fn process() {}"]);
+    let (.., warnings) = parse_diff(&diff);
+    assert!(warnings.is_empty());
 }

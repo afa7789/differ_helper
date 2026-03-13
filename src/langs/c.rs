@@ -18,9 +18,34 @@ impl Extractor for CExtractor {
         for name in type_and_fn_names(line) {
             out.functions.push(name.to_string());
         }
+        for name in include_names(line) {
+            out.imports.push(name);
+        }
 
         out
     }
+}
+
+/// Extract `#include` directives.
+fn include_names(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    if let Some(after) = trimmed.strip_prefix("#include ") {
+        let after = after.trim();
+        // `#include <header>` or `#include "header"`.
+        if (after.starts_with('<') && after.contains('>'))
+            || (after.starts_with('"') && after.len() > 1)
+        {
+            let delim_end = if after.starts_with('<') { '>' } else { '"' };
+            let inner = &after[1..];
+            if let Some(end) = inner.find(delim_end) {
+                let name = &inner[..end];
+                if !name.is_empty() {
+                    return vec![name.to_string()];
+                }
+            }
+        }
+    }
+    Vec::new()
 }
 
 /// Extract `#define` macro names.

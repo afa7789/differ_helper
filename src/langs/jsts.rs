@@ -21,6 +21,9 @@ impl Extractor for JsTsExtractor {
         for name in test_names(line) {
             out.tests.push(name);
         }
+        for name in import_names(line) {
+            out.imports.push(name);
+        }
 
         out
     }
@@ -116,6 +119,43 @@ fn fn_names(line: &str) -> Vec<&str> {
 
     out.sort_by_key(|(pos, _)| *pos);
     out.into_iter().map(|(_, name)| name).collect()
+}
+
+/// Extract JS/TS imports: `import ... from "mod"`, `require("mod")`.
+fn import_names(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    let mut out = Vec::new();
+
+    // `import ... from "module"` or `import "module"`.
+    if trimmed.starts_with("import ") || trimmed.starts_with("export ") {
+        if let Some(from_pos) = trimmed.find("from ") {
+            let after = &trimmed[from_pos + 5..];
+            if let Some(name) = ident::extract_string_arg(after) {
+                out.push(name.to_string());
+                return out;
+            }
+        }
+        // `import "module"` (side-effect import).
+        if let Some(after) = trimmed.strip_prefix("import ") {
+            if let Some(name) = ident::extract_string_arg(after) {
+                out.push(name.to_string());
+                return out;
+            }
+        }
+    }
+
+    // `require("module")`.
+    let mut start = 0;
+    while let Some(pos) = trimmed[start..].find("require(") {
+        let abs = start + pos;
+        let after = &trimmed[abs + 8..];
+        if let Some(name) = ident::extract_string_arg(after) {
+            out.push(name.to_string());
+        }
+        start = abs + 8;
+    }
+
+    out
 }
 
 /// Extract test names from describe/it/test blocks.

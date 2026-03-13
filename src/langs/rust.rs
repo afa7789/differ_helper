@@ -33,6 +33,11 @@ impl Extractor for RustExtractor {
             }
         }
 
+        // Imports: `use`, `extern crate`.
+        for name in import_names(line) {
+            out.imports.push(name);
+        }
+
         // Tests: handle `#[test]` on the same line as `fn`, or on the preceding line.
         if line.contains("#[test]") && line.contains("fn ") {
             if let Some(name) = extract_test_fn(line) {
@@ -53,6 +58,37 @@ impl Extractor for RustExtractor {
 
         out
     }
+}
+
+/// Extract Rust import paths: `use path::to::module` and `extern crate name`.
+fn import_names(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    let mut out = Vec::new();
+
+    // `pub use ...`, `use ...`
+    for prefix in ["pub use ", "use "] {
+        if let Some(after) = trimmed.strip_prefix(prefix) {
+            let end = after
+                .find(|c: char| c == ';' || c == '{' || c.is_whitespace())
+                .unwrap_or(after.len());
+            if end > 0 {
+                out.push(after[..end].to_string());
+            }
+            return out;
+        }
+    }
+
+    // `extern crate name`
+    if let Some(after) = trimmed.strip_prefix("extern crate ") {
+        let end = after
+            .find(|c: char| c == ';' || c.is_whitespace())
+            .unwrap_or(after.len());
+        if end > 0 {
+            out.push(after[..end].to_string());
+        }
+    }
+
+    out
 }
 
 /// Extract the function name from a line that contains `fn `.

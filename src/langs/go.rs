@@ -21,6 +21,9 @@ impl Extractor for GoExtractor {
         for name in test_names(line) {
             out.tests.push(name.to_string());
         }
+        for name in import_names(line) {
+            out.imports.push(name);
+        }
 
         out
     }
@@ -86,6 +89,56 @@ fn fn_names(line: &str) -> Vec<&str> {
     }
 
     out
+}
+
+/// Extract Go imports: `import "pkg"` or `import ( "pkg" )`.
+fn import_names(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+
+    // Single import: `import "pkg"` or `import alias "pkg"`.
+    if let Some(after) = trimmed.strip_prefix("import ") {
+        if let Some(name) = extract_go_import_path(after) {
+            return vec![name];
+        }
+    }
+
+    // Inside import block: `"pkg"` or `alias "pkg"`.
+    if trimmed.starts_with('"') {
+        if let Some(name) = extract_go_import_path(trimmed) {
+            return vec![name];
+        }
+    }
+
+    // Aliased inside block: `alias "pkg"`.
+    if let Some(quote_pos) = trimmed.find('"') {
+        if quote_pos > 0 && !trimmed.starts_with("import") {
+            let before = trimmed[..quote_pos].trim();
+            if !before.is_empty()
+                && before
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+            {
+                if let Some(name) = extract_go_import_path(&trimmed[quote_pos..]) {
+                    return vec![name];
+                }
+            }
+        }
+    }
+
+    Vec::new()
+}
+
+/// Extract a quoted Go import path like `"fmt"`.
+fn extract_go_import_path(s: &str) -> Option<String> {
+    let start = s.find('"')? + 1;
+    let rest = &s[start..];
+    let end = rest.find('"')?;
+    let path = &rest[..end];
+    if path.is_empty() {
+        None
+    } else {
+        Some(path.to_string())
+    }
 }
 
 /// Extract Go test function names.

@@ -3,6 +3,7 @@
 //! Extracts custom properties (`--var-name`) and class/id selectors.
 
 use crate::extract::{Extracted, Extractor, ExtractorState};
+use crate::ident;
 
 pub struct CssExtractor;
 
@@ -16,9 +17,31 @@ impl Extractor for CssExtractor {
         for name in selector_names(line) {
             out.functions.push(name.to_string());
         }
+        for name in import_names(line) {
+            out.imports.push(name);
+        }
 
         out
     }
+}
+
+/// Extract CSS `@import url("...")` or `@import "..."`.
+fn import_names(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    if let Some(after) = trimmed.strip_prefix("@import ") {
+        let after = after.trim();
+        // `@import url("...")`.
+        if let Some(rest) = after.strip_prefix("url(") {
+            if let Some(name) = ident::extract_string_arg(rest) {
+                return vec![name.to_string()];
+            }
+        }
+        // `@import "..."` or `@import '...'`.
+        if let Some(name) = ident::extract_string_arg(after) {
+            return vec![name.to_string()];
+        }
+    }
+    Vec::new()
 }
 
 /// Extract CSS custom properties (`--var-name`).

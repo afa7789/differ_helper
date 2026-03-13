@@ -7,6 +7,7 @@ pub struct Extracted {
     pub variables: Vec<String>,
     pub functions: Vec<String>,
     pub tests: Vec<String>,
+    pub imports: Vec<String>,
 }
 
 /// Per-language extraction logic.

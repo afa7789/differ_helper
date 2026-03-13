@@ -21,6 +21,9 @@ impl Extractor for PythonExtractor {
         for name in test_names(line) {
             out.tests.push(name.to_string());
         }
+        for name in import_names(line) {
+            out.imports.push(name);
+        }
 
         out
     }
@@ -101,6 +104,36 @@ fn fn_names(line: &str) -> Vec<&str> {
         }
     }
     out
+}
+
+/// Extract Python imports: `import X`, `from X import Y`.
+fn import_names(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+
+    // `from module import ...`
+    if let Some(after) = trimmed.strip_prefix("from ") {
+        let end = after.find(" import").unwrap_or(after.len());
+        if end > 0 {
+            return vec![after[..end].trim().to_string()];
+        }
+    }
+
+    // `import module` or `import module as alias`
+    if let Some(after) = trimmed.strip_prefix("import ") {
+        return after
+            .split(',')
+            .filter_map(|part| {
+                let name = part.split(" as ").next()?.trim();
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(name.to_string())
+                }
+            })
+            .collect();
+    }
+
+    Vec::new()
 }
 
 /// Extract test function names (pytest convention: `test_*` functions).
