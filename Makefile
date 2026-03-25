@@ -1,4 +1,4 @@
-.PHONY: build release test lint fmt check clean install reinstall uninstall
+.PHONY: build release test lint fmt check clean install reinstall uninstall tag
 
 # Default target
 all: check test build
@@ -59,6 +59,19 @@ cross-linux-arm:
 
 cross-windows:
 	cross build --release --target x86_64-pc-windows-gnu
+
+# Bump version, commit, and create git tag
+# Usage: make tag VERSION=0.2.0
+tag:
+ifndef VERSION
+	$(error VERSION is required. Usage: make tag VERSION=0.2.0)
+endif
+	@sed -i'' -e 's/^version.*=.*/version      = "$(VERSION)"/' Cargo.toml
+	@cargo check --quiet 2>/dev/null || true  # update Cargo.lock if it exists
+	@git add Cargo.toml Cargo.lock 2>/dev/null; git add Cargo.toml
+	@git commit -m "release: v$(VERSION)"
+	@git tag "v$(VERSION)"
+	@echo "Created tag v$(VERSION). Push with: git push origin main --tags"
 
 cross-all: cross-linux cross-linux-arm cross-windows release
 	@echo "Binaries:"
