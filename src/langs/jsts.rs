@@ -35,12 +35,31 @@ fn var_names(line: &str) -> Vec<&str> {
         "export const ",
         "export let ",
         "export var ",
+        "export let ", // Vue/Svelte props
         "declare const ",
         "declare let ",
         "const ",
         "let ",
         "var ",
     ];
+
+    if let Some(stripped) = line.strip_prefix("<script") {
+        if !stripped.contains("lang=") && !stripped.starts_with(' ') && !stripped.starts_with('>') {
+            return vec![];
+        }
+        if let Some(eq_pos) = stripped.find("lang=") {
+            let lang_part = &stripped[eq_pos..];
+            if lang_part.starts_with("lang=") {
+                let after = &lang_part[5..];
+                if let Some(end) = after.find(|c: char| !c.is_alphanumeric()) {
+                    let lang = &after[..end];
+                    if lang != "ts" && lang != "typescript" {
+                        return vec![];
+                    }
+                }
+            }
+        }
+    }
 
     let mut matches: Vec<(usize, &str)> = Vec::new();
     for prefix in prefixes {
@@ -116,6 +135,19 @@ fn fn_names(line: &str) -> Vec<&str> {
         "enum ",
     ];
     collect_patterns(line, &type_patterns, &mut out);
+
+    // Vue/Svelte: defineProps, defineEmits, defineModel
+    let vue_svelte_fns = ["defineProps", "defineEmits", "defineModel", "defineOptions"];
+    for pat in vue_svelte_fns {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(pat) {
+            let after = &line[start + pos + pat.len()..];
+            if after.starts_with('(') {
+                out.push((start + pos, pat));
+            }
+            start = start + pos + pat.len();
+        }
+    }
 
     out.sort_by_key(|(pos, _)| *pos);
     out.into_iter().map(|(_, name)| name).collect()

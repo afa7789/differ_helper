@@ -10,6 +10,11 @@ pub enum Lang {
     Go,
     C,
     Cpp,
+    Java,
+    Kotlin,
+    Swift,
+    ObjC,
+    Cs,
     Unknown,
 }
 
@@ -20,13 +25,18 @@ pub fn detect(file: &str) -> Lang {
     match ext {
         "rs" => Lang::Rust,
         "masm" => Lang::Masm,
-        "ts" | "tsx" | "js" | "jsx" => Lang::JsTs,
+        "ts" | "tsx" | "js" | "jsx" | "vue" | "svelte" | "astro" => Lang::JsTs,
         "css" => Lang::Css,
         "sql" => Lang::Sql,
         "py" | "pyi" => Lang::Python,
         "go" => Lang::Go,
         "c" | "h" => Lang::C,
         "cpp" | "cxx" | "cc" | "hpp" | "hxx" | "hh" => Lang::Cpp,
+        "java" => Lang::Java,
+        "kt" | "kts" => Lang::Kotlin,
+        "swift" => Lang::Swift,
+        "m" | "mm" => Lang::ObjC,
+        "cs" => Lang::Cs,
         _ => Lang::Unknown,
     }
 }

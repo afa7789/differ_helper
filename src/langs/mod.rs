@@ -4,13 +4,18 @@
 
 pub mod c;
 pub mod cpp;
+pub mod cs;
 pub mod css;
 pub mod go;
+pub mod java;
 pub mod jsts;
+pub mod kotlin;
 pub mod masm;
+pub mod objc;
 pub mod python;
 pub mod rust;
 pub mod sql;
+pub mod swift;
 
 use crate::extract::Extractor;
 use crate::lang::Lang;
@@ -29,6 +34,11 @@ pub fn extractor_for(lang: Lang) -> Option<Box<dyn Extractor>> {
         Lang::Go => Some(Box::new(go::GoExtractor)),
         Lang::C => Some(Box::new(c::CExtractor)),
         Lang::Cpp => Some(Box::new(cpp::CppExtractor)),
+        Lang::Java => Some(Box::new(java::JavaExtractor)),
+        Lang::Kotlin => Some(Box::new(kotlin::KotlinExtractor)),
+        Lang::Swift => Some(Box::new(swift::SwiftExtractor)),
+        Lang::ObjC => Some(Box::new(objc::ObjCExtractor)),
+        Lang::Cs => Some(Box::new(cs::CsExtractor)),
         Lang::Unknown => None,
     }
 }
