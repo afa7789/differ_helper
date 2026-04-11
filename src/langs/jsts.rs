@@ -149,6 +149,23 @@ fn fn_names(line: &str) -> Vec<&str> {
         }
     }
 
+    // Class declarations
+    let class_patterns = ["export default class ", "export class ", "class "];
+    collect_patterns(line, &class_patterns, &mut out);
+
+    // React/NestJS: component, hook, service patterns
+    let component_patterns = ["@Component(", "@Injectable(", "@Controller(", "@Entity("];
+    for pat in component_patterns {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(pat) {
+            let after = &line[start + pos + pat.len()..];
+            if let Some(name) = ident::extract_string_arg(after) {
+                out.push((start + pos, name));
+            }
+            start = start + pos + pat.len();
+        }
+    }
+
     out.sort_by_key(|(pos, _)| *pos);
     out.into_iter().map(|(_, name)| name).collect()
 }
@@ -206,6 +223,11 @@ fn test_names(line: &str) -> Vec<String> {
         "it.skip(",
         "test.skip(",
         "describe.skip(",
+        "given(",
+        "when(",
+        "then(",
+        "and(",
+        "but(",
     ];
     for pat in patterns {
         let mut start = 0;
@@ -216,6 +238,18 @@ fn test_names(line: &str) -> Vec<String> {
                 out.push(name.to_string());
             }
             start = abs + pat.len();
+        }
+    }
+    // Jest/Vitest test decorators
+    let decorators = ["@test(", "@it(", "@spec("];
+    for pat in decorators {
+        let mut start = 0;
+        while let Some(pos) = line[start..].find(pat) {
+            let after = &line[start + pat.len()..];
+            if let Some(name) = ident::extract_string_arg(after) {
+                out.push(name.to_string());
+            }
+            start = start + pos + pat.len();
         }
     }
     out
