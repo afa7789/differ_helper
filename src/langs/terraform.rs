@@ -28,8 +28,8 @@ impl Extractor for TerraformExtractor {
 
 fn resource_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("resource ") {
-        let after = &trimmed[9..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("resource ") {
+        let after = after.trim_start();
         let parts: Vec<&str> = after.split_whitespace().collect();
         if parts.len() >= 2 {
             let name = format!("{}_{}", parts[0], parts[1]);
@@ -41,8 +41,8 @@ fn resource_names(line: &str) -> Vec<String> {
 
 fn data_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("data ") {
-        let after = &trimmed[4..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("data ") {
+        let after = after.trim_start();
         let parts: Vec<&str> = after.split_whitespace().collect();
         if parts.len() >= 2 {
             let name = format!("data_{}_{}", parts[0], parts[1]);
@@ -54,8 +54,8 @@ fn data_names(line: &str) -> Vec<String> {
 
 fn variable_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("variable ") {
-        let after = &trimmed[9..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("variable ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }
@@ -65,8 +65,8 @@ fn variable_names(line: &str) -> Vec<String> {
 
 fn module_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("module ") {
-        let after = &trimmed[7..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("module ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }

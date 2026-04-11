@@ -67,6 +67,7 @@ fn fn_names(line: &str) -> Vec<&str> {
     }
 
     let rest = trimmed[name.len()..].trim_start();
+    #[allow(clippy::if_same_then_else)]
     if rest.starts_with('=') || rest.starts_with("::") {
         out.push(name);
     } else if rest.starts_with('|') {
@@ -84,24 +85,24 @@ fn type_names(line: &str) -> Vec<&str> {
     let trimmed = line.trim();
     let mut out = Vec::new();
 
-    if trimmed.starts_with("newtype ") {
-        if let Some(name) = ident::prefix(&trimmed[8..]) {
+    if let Some(rest) = trimmed.strip_prefix("newtype ") {
+        if let Some(name) = ident::prefix(rest) {
             out.push(name);
         }
-    } else if trimmed.starts_with("class ") {
-        if let Some(name) = ident::prefix(&trimmed[6..]) {
+    } else if let Some(rest) = trimmed.strip_prefix("class ") {
+        if let Some(name) = ident::prefix(rest) {
             out.push(name);
         }
-    } else if trimmed.starts_with("data ") {
-        if let Some(name) = ident::prefix(&trimmed[5..]) {
+    } else if let Some(rest) = trimmed.strip_prefix("data ") {
+        if let Some(name) = ident::prefix(rest) {
             out.push(name);
         }
-    } else if trimmed.starts_with("type ") {
-        if let Some(name) = ident::prefix(&trimmed[5..]) {
+    } else if let Some(rest) = trimmed.strip_prefix("type ") {
+        if let Some(name) = ident::prefix(rest) {
             out.push(name);
         }
-    } else if trimmed.starts_with("type family ") {
-        if let Some(name) = ident::prefix(&trimmed[12..]) {
+    } else if let Some(rest) = trimmed.strip_prefix("type family ") {
+        if let Some(name) = ident::prefix(rest) {
             out.push(name);
         }
     }
@@ -125,7 +126,7 @@ fn import_names(line: &str) -> Vec<String> {
         // Get the module name (could have dots: Data.List).
         // Find first whitespace or ( to get module name.
         let module_end = name
-            .find(|c: char| c.is_whitespace() || c == '(' || c == '(')
+            .find(|c: char| c.is_whitespace() || c == '(')
             .unwrap_or(name.len());
         let module_name = name[..module_end].trim();
         if !module_name.is_empty() && module_name != "module" {

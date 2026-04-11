@@ -23,8 +23,8 @@ impl Extractor for ShellExtractor {
 fn fn_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
 
-    if trimmed.starts_with("function ") {
-        let after = &trimmed[9..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("function ") {
+        let after = after.trim_start();
         if after.ends_with('(') {
             let name = after.trim_end_matches('(');
             return vec![name.to_string()];
@@ -34,8 +34,8 @@ fn fn_names(line: &str) -> Vec<String> {
         }
     }
 
-    if trimmed.starts_with("alias ") {
-        let after = &trimmed[6..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("alias ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }
@@ -62,13 +62,13 @@ fn fn_names(line: &str) -> Vec<String> {
 fn import_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
 
-    if trimmed.starts_with("source ") {
-        let after = trimmed[7..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("source ") {
+        let after = after.trim_start();
         if let Some(name) = ident::extract_string_arg(after) {
             return vec![name.to_string()];
         }
-        if after.starts_with('$') {
-            return vec![after[1..].to_string()];
+        if let Some(stripped) = after.strip_prefix('$') {
+            return vec![stripped.to_string()];
         }
     }
 

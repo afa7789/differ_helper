@@ -28,20 +28,20 @@ impl Extractor for JavaExtractor {
 
 fn import_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("import ") {
-        if let Some(from_pos) = trimmed.find(" from ") {
-            let after = &trimmed[from_pos + 6..];
+    if let Some(rest) = trimmed.strip_prefix("import ") {
+        if let Some(from_pos) = rest.find(" from ") {
+            let after = &rest[from_pos + 6..];
             if let Some(name) = ident::extract_string_arg(after) {
                 return vec![name.to_string()];
             }
         }
-        if let Some(static_pos) = trimmed.find(" static ") {
-            let after = &trimmed[static_pos + 8..];
+        if let Some(static_pos) = rest.find(" static ") {
+            let after = &rest[static_pos + 8..];
             if let Some(name) = ident::extract_string_arg(after) {
                 return vec![name.to_string()];
             }
         }
-        if let Some(name) = ident::extract_string_arg(&trimmed[7..]) {
+        if let Some(name) = ident::extract_string_arg(rest) {
             return vec![name.to_string()];
         }
     }
@@ -71,8 +71,8 @@ fn var_names(line: &str) -> Vec<String> {
                 if let Some(name) = ident::prefix(after.split_whitespace().nth(1).unwrap_or("")) {
                     out.push(name.to_string());
                 }
-            } else if after.starts_with("const ") {
-                if let Some(name) = ident::prefix(&after[6..]) {
+            } else if let Some(after_const) = after.strip_prefix("const ") {
+                if let Some(name) = ident::prefix(after_const) {
                     out.push(name.to_string());
                 }
             }

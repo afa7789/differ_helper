@@ -23,8 +23,8 @@ impl Extractor for LuaExtractor {
 fn fn_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
 
-    if trimmed.starts_with("function ") {
-        let after = &trimmed[9..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("function ") {
+        let after = after.trim_start();
         if after.contains('.') {
             let parts: Vec<&str> = splitn(after, '.', 2);
             if let Some(name) = ident::prefix(parts[0]) {

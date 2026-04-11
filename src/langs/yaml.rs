@@ -45,10 +45,10 @@ fn key_names(line: &str) -> Vec<String> {
 fn anchor_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
 
-    if trimmed.starts_with("&") {
-        let after = &trimmed[1..].trim_start();
-        if after.starts_with("anchor ") {
-            let name = after[7..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("&") {
+        let after = after.trim_start();
+        if let Some(rest) = after.strip_prefix("anchor ") {
+            let name = rest.trim_start();
             if let Some(n) = ident::prefix(name) {
                 return vec![n.to_string()];
             }

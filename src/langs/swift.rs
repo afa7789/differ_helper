@@ -25,8 +25,8 @@ impl Extractor for SwiftExtractor {
 
 fn import_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("import ") {
-        let after = trimmed[7..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("import ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }
@@ -40,8 +40,8 @@ fn import_names(line: &str) -> Vec<String> {
 
 fn fn_names(line: &str) -> Vec<&str> {
     let trimmed = line.trim();
-    if trimmed.starts_with("func ") {
-        let after = &trimmed[5..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("func ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name];
         }
@@ -81,8 +81,8 @@ fn type_names(line: &str) -> Vec<&str> {
         "actor ",
     ];
     for prefix in prefixes {
-        if trimmed.starts_with(prefix) {
-            let after = &trimmed[prefix.len()..].trim_start();
+        if let Some(after) = trimmed.strip_prefix(prefix) {
+            let after = after.trim_start();
             if let Some(name) = ident::prefix(after) {
                 return vec![name];
             }

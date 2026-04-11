@@ -25,6 +25,7 @@ impl Extractor for PhpExtractor {
 
 fn import_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
+    #[allow(clippy::collapsible_if)]
     if trimmed.starts_with("require ") || trimmed.starts_with("include ") {
         if trimmed.contains('(') {
             if let Some(name) =
@@ -36,9 +37,7 @@ fn import_names(line: &str) -> Vec<String> {
     }
     if trimmed.starts_with("use ") && !trimmed.contains(" use ") {
         let rest = &trimmed[4..].trim_end();
-        if rest.ends_with(';') {
-            let rest = rest.trim_end_matches(';');
-        }
+        let rest = rest.trim_end_matches(';');
         let parts: Vec<&str> = rest.split(" as ").collect();
         let name = parts[0];
         if let Some(n) = ident::prefix(name) {
@@ -50,26 +49,23 @@ fn import_names(line: &str) -> Vec<String> {
 
 fn fn_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("function ") {
-        let after = &trimmed[9..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("function ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }
     }
-    if trimmed.starts_with("public function ")
-        || trimmed.starts_with("private function ")
-        || trimmed.starts_with("protected function ")
-    {
-        let prefix = if trimmed.starts_with("public function ") {
-            14
-        } else if trimmed.starts_with("private function ") {
-            15
-        } else {
-            17
-        };
-        let after = &trimmed[prefix..].trim_start();
-        if let Some(name) = ident::prefix(after) {
-            return vec![name.to_string()];
+    let prefixes = [
+        "public function ",
+        "private function ",
+        "protected function ",
+    ];
+    for prefix in prefixes {
+        if let Some(after) = trimmed.strip_prefix(prefix) {
+            let after = after.trim_start();
+            if let Some(name) = ident::prefix(after) {
+                return vec![name.to_string()];
+            }
         }
     }
     Vec::new()
@@ -77,8 +73,8 @@ fn fn_names(line: &str) -> Vec<String> {
 
 fn class_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("class ") {
-        let after = &trimmed[6..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("class ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }
@@ -89,8 +85,8 @@ fn class_names(line: &str) -> Vec<String> {
             return vec![name.to_string()];
         }
     }
-    if trimmed.starts_with("trait ") {
-        let after = &trimmed[6..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("trait ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name.to_string()];
         }

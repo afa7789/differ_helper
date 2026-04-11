@@ -25,14 +25,14 @@ impl Extractor for KotlinExtractor {
 
 fn import_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("import ") {
-        if let Some(as_pos) = trimmed.find(" as ") {
-            let before = &trimmed[7..as_pos];
+    if let Some(rest) = trimmed.strip_prefix("import ") {
+        if let Some(as_pos) = rest.find(" as ") {
+            let before = &rest[..as_pos];
             if let Some(name) = ident::extract_string_arg(before) {
                 return vec![name.to_string()];
             }
         }
-        if let Some(name) = ident::extract_string_arg(&trimmed[7..]) {
+        if let Some(name) = ident::extract_string_arg(rest) {
             return vec![name.to_string()];
         }
     }
@@ -44,8 +44,8 @@ fn fn_names(line: &str) -> Vec<&str> {
     if trimmed.starts_with('@') {
         return Vec::new();
     }
-    if trimmed.starts_with("fun ") {
-        let after = &trimmed[4..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("fun ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name];
         }
@@ -79,8 +79,8 @@ fn type_names(line: &str) -> Vec<&str> {
         "annotation class ",
     ];
     for prefix in prefixes {
-        if trimmed.starts_with(prefix) {
-            let after = &trimmed[prefix.len()..].trim_start();
+        if let Some(after) = trimmed.strip_prefix(prefix) {
+            let after = after.trim_start();
             if let Some(name) = ident::prefix(after) {
                 if name != "object" {
                     return vec![name];

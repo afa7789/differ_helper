@@ -51,15 +51,14 @@ fn fn_names(line: &str) -> Vec<String> {
     }
     let prefixes = ["public ", "private ", "protected ", "internal "];
     for prefix in prefixes {
-        if trimmed.starts_with(prefix) {
-            let rest = &trimmed[prefix.len()..];
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
             if let Some(name) = extract_method_name(rest) {
                 return vec![name];
             }
         }
     }
-    if trimmed.starts_with("async ") {
-        if let Some(name) = extract_method_name(&trimmed[6..]) {
+    if let Some(rest) = trimmed.strip_prefix("async ") {
+        if let Some(name) = extract_method_name(rest) {
             return vec![name];
         }
     }
@@ -70,8 +69,7 @@ fn extract_method_name(rest: &str) -> Option<String> {
     for kw in [
         "void ", "int ", "string ", "bool ", "var ", "Task<", "Task ", "async ",
     ] {
-        if rest.starts_with(kw) {
-            let after = &rest[kw.len()..];
+        if let Some(after) = rest.strip_prefix(kw) {
             if let Some(name) = ident::prefix(after) {
                 return Some(name.to_string());
             }
@@ -95,8 +93,8 @@ fn type_names(line: &str) -> Vec<String> {
         "record ",
     ];
     for prefix in prefixes {
-        if trimmed.starts_with(prefix) {
-            let after = &trimmed[prefix.len()..].trim_start();
+        if let Some(after) = trimmed.strip_prefix(prefix) {
+            let after = after.trim_start();
             if let Some(name) = ident::prefix(after) {
                 return vec![name.to_string()];
             }

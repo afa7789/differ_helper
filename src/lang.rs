@@ -28,6 +28,7 @@ pub enum Lang {
 }
 
 impl Lang {
+    #[allow(dead_code)]
     pub fn is_known(self) -> bool {
         self != Lang::Unknown
     }
@@ -39,6 +40,7 @@ pub fn detect(file: &str) -> Lang {
 }
 
 /// Detect language from file content (for shebang).
+#[allow(dead_code)]
 pub fn detect_from_content(content: &str) -> Lang {
     let first_line = content.lines().next().unwrap_or("");
     let trimmed = first_line.trim();
@@ -73,7 +75,7 @@ pub fn detect_from_content(content: &str) -> Lang {
 
 /// Detect language from filename patterns.
 pub fn detect_from_path(file: &str) -> Lang {
-    let filename = file.split('/').last().unwrap_or(file);
+    let filename = file.split('/').next_back().unwrap_or(file);
 
     match filename {
         "Makefile" | "makefile" | "CMakeLists.txt" | "Dockerfile" | "Dockerfile.prod" => {

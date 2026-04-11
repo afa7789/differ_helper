@@ -25,29 +25,29 @@ impl Extractor for ObjCExtractor {
 
 fn import_names(line: &str) -> Vec<String> {
     let trimmed = line.trim();
-    if trimmed.starts_with("#import ") {
-        let after = trimmed[8..].trim_start();
-        if after.starts_with('<') {
-            if let Some(end) = after.find('>') {
-                return vec![after[1..end].to_string()];
+    if let Some(after) = trimmed.strip_prefix("#import ") {
+        let after = after.trim_start();
+        if let Some(stripped) = after.strip_prefix('<') {
+            if let Some(end) = stripped.find('>') {
+                return vec![stripped[..end].to_string()];
             }
         }
-        if after.starts_with('"') {
-            if let Some(end) = after[1..].find('"') {
-                return vec![after[1..end + 1].to_string()];
+        if let Some(stripped) = after.strip_prefix('"') {
+            if let Some(end) = stripped.find('"') {
+                return vec![stripped[..end + 1].to_string()];
             }
         }
     }
-    if trimmed.starts_with("#include ") {
-        let after = trimmed[9..].trim_start();
-        if after.starts_with('<') {
-            if let Some(end) = after.find('>') {
-                return vec![after[1..end].to_string()];
+    if let Some(after) = trimmed.strip_prefix("#include ") {
+        let after = after.trim_start();
+        if let Some(stripped) = after.strip_prefix('<') {
+            if let Some(end) = stripped.find('>') {
+                return vec![stripped[..end].to_string()];
             }
         }
-        if after.starts_with('"') {
-            if let Some(end) = after[1..].find('"') {
-                return vec![after[1..end + 1].to_string()];
+        if let Some(stripped) = after.strip_prefix('"') {
+            if let Some(end) = stripped.find('"') {
+                return vec![stripped[..end + 1].to_string()];
             }
         }
     }
@@ -90,8 +90,9 @@ fn fn_names(line: &str) -> Vec<&str> {
 
 fn type_names(line: &str) -> Vec<&str> {
     let trimmed = line.trim();
-    if trimmed.starts_with("@interface ") {
-        let after = trimmed[11..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("@interface ") {
+        let after = after.trim_start();
+        #[allow(clippy::manual_pattern_char_comparison)]
         let name_end = after
             .find(|c: char| c == '(' || c == ':' || c == '{')
             .unwrap_or(after.len());
@@ -99,14 +100,14 @@ fn type_names(line: &str) -> Vec<&str> {
             return vec![name];
         }
     }
-    if trimmed.starts_with("@protocol ") {
-        let after = trimmed[10..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("@protocol ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name];
         }
     }
-    if trimmed.starts_with("@class ") {
-        let after = trimmed[7..].trim_start();
+    if let Some(after) = trimmed.strip_prefix("@class ") {
+        let after = after.trim_start();
         if let Some(name) = ident::prefix(after) {
             return vec![name];
         }

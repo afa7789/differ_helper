@@ -49,8 +49,7 @@ fn var_names(line: &str) -> Vec<&str> {
         }
         if let Some(eq_pos) = stripped.find("lang=") {
             let lang_part = &stripped[eq_pos..];
-            if lang_part.starts_with("lang=") {
-                let after = &lang_part[5..];
+            if let Some(after) = lang_part.strip_prefix("lang=") {
                 if let Some(end) = after.find(|c: char| !c.is_alphanumeric()) {
                     let lang = &after[..end];
                     if lang != "ts" && lang != "typescript" {
