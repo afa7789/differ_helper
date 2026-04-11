@@ -36,5 +36,5 @@ fn detect_jsts() {
 #[test]
 fn detect_unknown() {
     assert_eq!(detect("README.md"), Lang::Unknown);
-    assert_eq!(detect("Makefile"), Lang::Unknown);
+    assert_eq!(detect("Makefile"), Lang::Shell);
 }

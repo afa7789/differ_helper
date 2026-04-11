@@ -10,12 +10,18 @@ pub mod go;
 pub mod java;
 pub mod jsts;
 pub mod kotlin;
+pub mod lua;
 pub mod masm;
 pub mod objc;
+pub mod php;
 pub mod python;
+pub mod ruby;
 pub mod rust;
+pub mod shell;
 pub mod sql;
 pub mod swift;
+pub mod terraform;
+pub mod yaml;
 
 use crate::extract::Extractor;
 use crate::lang::Lang;
@@ -39,6 +45,12 @@ pub fn extractor_for(lang: Lang) -> Option<Box<dyn Extractor>> {
         Lang::Swift => Some(Box::new(swift::SwiftExtractor)),
         Lang::ObjC => Some(Box::new(objc::ObjCExtractor)),
         Lang::Cs => Some(Box::new(cs::CsExtractor)),
+        Lang::Ruby => Some(Box::new(ruby::RubyExtractor)),
+        Lang::Php => Some(Box::new(php::PhpExtractor)),
+        Lang::Shell => Some(Box::new(shell::ShellExtractor)),
+        Lang::Lua => Some(Box::new(lua::LuaExtractor)),
+        Lang::Terraform => Some(Box::new(terraform::TerraformExtractor)),
+        Lang::Yaml => Some(Box::new(yaml::YamlExtractor)),
         Lang::Unknown => None,
     }
 }
