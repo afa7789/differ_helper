@@ -21,6 +21,9 @@ pub enum Lang {
     Lua,
     Terraform,
     Yaml,
+    Zig,
+    Haskell,
+    Nim,
     Unknown,
 }
 
@@ -110,6 +113,9 @@ fn detect_from_ext(file: &str) -> Lang {
         "tf" | "tfvars" => Lang::Terraform,
         "yml" | "yaml" => Lang::Yaml,
         "toml" => Lang::Yaml,
+        "zig" => Lang::Zig,
+        "hs" => Lang::Haskell,
+        "nim" => Lang::Nim,
         _ => Lang::Unknown,
     }
 }

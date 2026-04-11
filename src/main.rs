@@ -33,6 +33,10 @@
 //! | Go             | `.go`                                |
 //! | C              | `.c` `.h`                            |
 //! | C++            | `.cpp` `.cxx` `.cc` `.hpp` `.hxx`    |
+//! | Ruby           | `.rb`                                |
+//! | Zig            | `.zig`                               |
+//! | Haskell        | `.hs`                                |
+//! | Nim            | `.nim`                               |
 
 mod extract;
 mod ident;
